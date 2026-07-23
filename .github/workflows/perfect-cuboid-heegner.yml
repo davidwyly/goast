@@ -38,3 +38,34 @@ jobs:
       - name: Fail if Sage process failed
         if: steps.heegner.outputs.exit_code != '0'
         run: exit 1
+
+  deep-descent-generator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run deeper mwrank 2-descent
+        id: descent
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm --user root --entrypoint bash \
+            -v "$GITHUB_WORKSPACE:/work:ro" \
+            sagemath/sagemath:9.4 \
+            -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/deep_descent_43_71.sage' \
+            2>&1 | tee deep-descent-43-71-output.txt
+          code=${PIPESTATUS[0]}
+          grep -q '^DEEP_GENERATOR_COMPLETE True$' deep-descent-43-71-output.txt || code=1
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deep-descent-43-71
+          path: |
+            deep-descent-43-71-output.txt
+            deep-descent-43-71-point.txt
+          if-no-files-found: warn
+      - name: Fail if Sage process failed
+        if: steps.descent.outputs.exit_code != '0'
+        run: exit 1
