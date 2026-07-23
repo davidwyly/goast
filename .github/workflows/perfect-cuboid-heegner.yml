@@ -69,3 +69,34 @@ jobs:
       - name: Fail if Sage process failed
         if: steps.descent.outputs.exit_code != '0'
         run: exit 1
+
+  specific-heegner-generator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run fixed-discriminant Heegner search
+        id: specific
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm --user root --entrypoint bash \
+            -v "$GITHUB_WORKSPACE:/work:ro" \
+            sagemath/sagemath:9.4 \
+            -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/heegner_specific_43_71.sage' \
+            2>&1 | tee heegner-specific-43-71-output.txt
+          code=${PIPESTATUS[0]}
+          grep -q '^SPECIFIC_HEEGNER_COMPLETE True$' heegner-specific-43-71-output.txt || code=1
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heegner-specific-43-71
+          path: |
+            heegner-specific-43-71-output.txt
+            heegner-specific-43-71-point.txt
+          if-no-files-found: warn
+      - name: Fail if Sage process failed
+        if: steps.specific.outputs.exit_code != '0'
+        run: exit 1
