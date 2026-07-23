@@ -3,6 +3,8 @@ name: perfect-cuboid-heegner-43-71
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 jobs:
