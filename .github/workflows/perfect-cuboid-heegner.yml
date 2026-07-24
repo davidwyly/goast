@@ -20,13 +20,10 @@ jobs:
         run: |
           set -o pipefail
           docker run --rm --user root --entrypoint bash \
-            -v "$GITHUB_WORKSPACE:/work:ro" \
-            sagemath/sagemath:9.4 \
+            -v "$GITHUB_WORKSPACE:/work:ro" sagemath/sagemath:9.4 \
             -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/heegner_43_71.sage' \
             2>&1 | tee heegner-43-71-output.txt
-          code=${PIPESTATUS[0]}
-          grep -q '^HEEGNER_COMPLETE True$' heegner-43-71-output.txt || code=1
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          code=${PIPESTATUS[0]}; grep -q '^HEEGNER_COMPLETE True$' heegner-43-71-output.txt || code=1; echo "exit_code=$code" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,13 +48,10 @@ jobs:
         run: |
           set -o pipefail
           docker run --rm --user root --entrypoint bash \
-            -v "$GITHUB_WORKSPACE:/work:ro" \
-            sagemath/sagemath:9.4 \
+            -v "$GITHUB_WORKSPACE:/work:ro" sagemath/sagemath:9.4 \
             -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/deep_descent_43_71.sage' \
             2>&1 | tee deep-descent-43-71-output.txt
-          code=${PIPESTATUS[0]}
-          grep -q '^DEEP_GENERATOR_COMPLETE True$' deep-descent-43-71-output.txt || code=1
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          code=${PIPESTATUS[0]}; grep -q '^DEEP_GENERATOR_COMPLETE True$' deep-descent-43-71-output.txt || code=1; echo "exit_code=$code" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -82,13 +76,10 @@ jobs:
         run: |
           set -o pipefail
           docker run --rm --user root --entrypoint bash \
-            -v "$GITHUB_WORKSPACE:/work:ro" \
-            sagemath/sagemath:9.4 \
+            -v "$GITHUB_WORKSPACE:/work:ro" sagemath/sagemath:9.4 \
             -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/heegner_specific_43_71.sage' \
             2>&1 | tee heegner-specific-43-71-output.txt
-          code=${PIPESTATUS[0]}
-          grep -q '^SPECIFIC_HEEGNER_COMPLETE True$' heegner-specific-43-71-output.txt || code=1
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          code=${PIPESTATUS[0]}; grep -q '^SPECIFIC_HEEGNER_COMPLETE True$' heegner-specific-43-71-output.txt || code=1; echo "exit_code=$code" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,4 +90,39 @@ jobs:
           if-no-files-found: warn
       - name: Fail if Sage process failed
         if: steps.specific.outputs.exit_code != '0'
+        run: exit 1
+
+  isogeny-class-heegner:
+    strategy:
+      fail-fast: false
+      matrix:
+        curve_index: [0,1,2,3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Heegner on isogenous curve ${{ matrix.curve_index }}
+        id: iso
+        continue-on-error: true
+        shell: bash
+        env:
+          CURVE_INDEX: ${{ matrix.curve_index }}
+        run: |
+          set -o pipefail
+          docker run --rm --user root --entrypoint bash \
+            -e CURVE_INDEX="$CURVE_INDEX" \
+            -v "$GITHUB_WORKSPACE:/work:ro" sagemath/sagemath:9.4 \
+            -lc 'cp -a /work/perfect_cuboid /tmp/perfect_cuboid && cd /tmp && sage perfect_cuboid/heegner_isogenous_43_71.sage' \
+            2>&1 | tee "heegner-isogenous-${CURVE_INDEX}-output.txt"
+          code=${PIPESTATUS[0]}; grep -q "^ISOGENOUS_HEEGNER_COMPLETE ${CURVE_INDEX} True$" "heegner-isogenous-${CURVE_INDEX}-output.txt" || code=1; echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heegner-isogenous-${{ matrix.curve_index }}
+          path: |
+            heegner-isogenous-${{ matrix.curve_index }}-output.txt
+            heegner-isogenous-${{ matrix.curve_index }}-point.txt
+          if-no-files-found: warn
+      - name: Fail if Sage process failed
+        if: steps.iso.outputs.exit_code != '0'
         run: exit 1
